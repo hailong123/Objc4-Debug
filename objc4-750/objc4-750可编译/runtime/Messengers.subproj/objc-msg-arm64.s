@@ -299,22 +299,30 @@ _objc_debug_taggedpointer_ext_classes:
 	.fill 256, 8, 0
 #endif
 
+//ENTRY 表示函数入口
 	ENTRY _objc_msgSend
 	UNWIND _objc_msgSend, NoFrame
 
+//p0 存储的是 objc_msgSend的第一个参数(即接收方)
+//在此对接收者进行非空判断
 	cmp	p0, #0			// nil check and tagged pointer check
-#if SUPPORT_TAGGED_POINTERS
+#if SUPPORT_TAGGED_POINTERS  //是否支持Tagged pointer 64位CPU架构下为 1
+    //64位 且 p0 <= 0 (le即 less or equal) 跳转到 LNilOrTagged
 	b.le	LNilOrTagged		//  (MSB tagged pointer looks negative)
 #else
+    //32位 且 p0 == 0 (eq 即 equal) 跳转到 LReturnZero
 	b.eq	LReturnZero
 #endif
+    //读取接收者 (实例对象, 类对象, 元类对象)的 isa 到 p13
 	ldr	p13, [x0]		// p13 = isa
+    //根据isa得到class 需要 与上 #0xffffffff8UL
 	GetClassFromIsa_p16 p13		// p16 = class
 LGetIsaDone:
 	CacheLookup NORMAL		// calls imp or objc_msgSend_uncached
 
 #if SUPPORT_TAGGED_POINTERS
 LNilOrTagged:
+//P0 == 0 即接收者为 nil 跳转到 LReturnZero
 	b.eq	LReturnZero		// nil check
 
 	// tagged
@@ -344,7 +352,8 @@ LReturnZero:
 	movi	d2, #0
 	movi	d3, #0
 	ret
-
+    
+    //表示函数结束
 	END_ENTRY _objc_msgSend
 
 
